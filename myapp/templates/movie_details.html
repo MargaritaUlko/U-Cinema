@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ movie.title }}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+    <style>
+        .hall {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .row-label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .screen {
+            width: 100%;
+            height: 20px;
+            background-color: black;
+            margin: 20px 0;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .seat {
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border: 2px solid black;
+            border-radius: 50%;
+            margin: 0 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .selected {
+            background-color: red;
+        }
+    </style>
+</head>
+<body>
+
+<div class="movie-details">
+    <div class="info">
+        <h2>{{ movie.title }}</h2>
+        <p>{{ movie.description }}</p>
+    </div>
+    <div class="image">
+        <img src="{% static movie.poster %}" alt="{{ movie.title }} Poster">
+    </div>
+</div>
+
+<div id="seatSelection">
+    <h3>Выберите место</h3>
+    <div id="hall" class="hall">
+        <!-- Места будут отображаться здесь -->
+    </div>
+    <div class="screen">Экран</div>
+    <button id="bookButton">Забронировать</button>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var hall = document.getElementById("hall");
+
+        var rows = 12;
+        var seatsPerRow = 30;
+        for (var row = 1; row <= rows; row++) {
+            var rowElement = document.createElement("div");
+            rowElement.classList.add("row");
+
+            var rowLabel = document.createElement("span");
+            rowLabel.classList.add("row-label");
+            rowLabel.textContent = "Ряд " + row;
+            rowElement.appendChild(rowLabel);
+
+            for (var seat = 1; seat <= seatsPerRow; seat++) {
+                var seatElement = document.createElement("div");
+                seatElement.classList.add("seat");
+                seatElement.dataset.row = row;
+                seatElement.dataset.seat = seat;
+                seatElement.textContent = seat;
+                rowElement.appendChild(seatElement);
+            }
+
+            hall.appendChild(rowElement);
+        }
+
+        hall.addEventListener("click", function(event) {
+            var selectedSeat = event.target;
+            if (selectedSeat.classList.contains("seat")) {
+                selectedSeat.classList.toggle("selected");
+            }
+        });
+
+        var bookButton = document.getElementById("bookButton");
+        bookButton.addEventListener("click", function() {
+            var selectedSeats = document.querySelectorAll(".seat.selected");
+            var selectedSeatInfo = [];
+            selectedSeats.forEach(function(seat) {
+                selectedSeatInfo.push({
+                    row: seat.dataset.row,
+                    seat: seat.dataset.seat
+                });
+            });
+            console.log(selectedSeatInfo);
+        });
+    });
+</script>
+
+</body>
+</html>
