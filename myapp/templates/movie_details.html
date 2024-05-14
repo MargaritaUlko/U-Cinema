@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -42,6 +41,20 @@
         .selected {
             background-color: red;
         }
+        .booked {
+            background-color: black;
+            cursor: not-allowed;
+        }
+        #messageBox {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: lightgray;
+            border: 1px solid gray;
+            border-radius: 5px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -61,7 +74,7 @@
     <ul>
         {% for session in sessions %}
             <li>Время начала: {{ session.start_datetime }}, Цена билета: {{ session.ticket_price }}
-                <div id="hall_{{ session.id }}" class="hall">
+                <div id="hall_{{ session.id }}" class="hall" data-session-id="{{ session.id }}">
                 </div>
                 <div class="screen">Экран</div>
                 <button class="bookButton" data-session-id="{{ session.id }}">Забронировать</button>
@@ -69,6 +82,8 @@
         {% endfor %}
     </ul>
 </div>
+
+<div id="messageBox"></div>
 
 <script>
     function getCookie(name) {
@@ -88,7 +103,11 @@
 
     document.addEventListener("DOMContentLoaded", function() {
         var halls = document.querySelectorAll(".hall");
+        var bookedSeats = {{ booked_seats|safe }};
+
         halls.forEach(function(hall) {
+            var sessionId = hall.dataset.sessionId;
+            var sessionBookedSeats = bookedSeats[sessionId] || [];
             var seatsPerRow = 10;
             var rows = 10;
 
@@ -103,6 +122,11 @@
                     seat.textContent = j + 1;
                     seat.dataset.row = i + 1;
                     seat.dataset.seat = j + 1;
+
+                    if (sessionBookedSeats.some(s => s.row == (i + 1) && s.seat == (j + 1))) {
+                        seat.classList.add("booked");
+                    }
+
                     row.appendChild(seat);
                 }
                 hall.appendChild(row);
@@ -123,8 +147,6 @@
                     });
                 });
 
-                console.log("Selected seats:", selectedSeatsInfo); // Отладка выбранных мест
-
                 fetch('{% url "book_seat" %}', {
                     method: 'POST',
                     headers: {
@@ -138,23 +160,40 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    console.log("Response:", data); // Отладка ответа сервера
                     if (data.success) {
-                        alert('Бронь успешно совершена!');
+                        showMessage('Бронь успешно совершена!');
+                        selectedSeats.forEach(function(seat) {
+                            seat.classList.remove("selected");
+                            seat.classList.add("booked");
+                            seat.removeEventListener("click", toggleSelection);
+                        });
                     } else {
-                        alert('Ошибка при бронировании: ' + data.error);
+                        showMessage('Ошибка при бронировании: ' + data.error);
                     }
                 })
-                .catch(error => alert('Ошибка: ' + error));
+                .catch(error => showMessage('Ошибка: ' + error));
             });
         });
 
         var seats = document.querySelectorAll(".seat");
         seats.forEach(function(seat) {
-            seat.addEventListener("click", function() {
-                seat.classList.toggle("selected");
-            });
+            seat.addEventListener("click", toggleSelection);
         });
+
+        function toggleSelection() {
+            if (!this.classList.contains("booked")) {
+                this.classList.toggle("selected");
+            }
+        }
+
+        function showMessage(message) {
+            var messageBox = document.getElementById("messageBox");
+            messageBox.textContent = message;
+            messageBox.style.display = "block";
+            setTimeout(function() {
+                messageBox.style.display = "none";
+            }, 3000);
+        }
     });
 </script>
 

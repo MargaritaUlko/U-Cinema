@@ -82,33 +82,37 @@ def movie_details(request, movie_id):
     sessions = Session.objects.filter(movie=movie)
 
     if request.method == 'POST':
-        # Получаем данные из POST запроса
         session_id = request.POST.get('session_id')
         row_number = request.POST.get('row_number')
         seat_number = request.POST.get('seat_number')
-        status = request.POST.get('status')  # получаем статус из запроса
-        user = request.user  # текущий пользователь
+        status = request.POST.get('status')
+        user = request.user
 
-        # Создаем запись в базе данных
         booking = Booking.objects.create(
             user=user,
             session_id=session_id,
             row_number=row_number,
             seat_number=seat_number,
-            status=status  # сохраняем статус
+            status=status
         )
 
-        # Обновляем информацию о доступных местах в сеансе
         session = Session.objects.get(pk=session_id)
         session.available_seats -= 1
         session.save()
 
-        # Возвращаем успешный ответ
         return JsonResponse({'success': True})
 
-    # Возвращаем данные о сеансах для GET-запроса
-    return render(request, 'movie_details.html', {'movie': movie, 'sessions': sessions})
+    booked_seats = {}
+    for session in sessions:
+        bookings = Booking.objects.filter(session=session)
+        booked_seats[session.id] = [{'row': booking.row_number, 'seat': booking.seat_number} for booking in bookings]
 
+    context = {
+        'movie': movie,
+        'sessions': sessions,
+        'booked_seats': booked_seats
+    }
+    return render(request, 'movie_details.html', context)
 @csrf_exempt
 def book_seat(request):
     if request.method == 'POST':
