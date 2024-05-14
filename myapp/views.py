@@ -10,7 +10,45 @@ from .models import User
 from .models import Movie1
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
+from .models import Session
+from .models import Booking
+from django.contrib.auth.decorators import login_required
 
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+@login_required
+@csrf_exempt
+def book_seat(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            session_id = data.get('session_id')
+            user_id = request.user.id  # Предполагая, что пользователь аутентифицирован
+            selected_seats = data.get('selected_seats', [])
+
+            session = get_object_or_404(Session, id=session_id)
+            user = get_object_or_404(User, id=user_id)
+
+            for seat_info in selected_seats:
+                row_number = seat_info.get('row')
+                seat_number = seat_info.get('seat')
+
+                # Create a booking record
+                Booking.objects.create(
+                    user=user,
+                    session=session,
+                    row_number=row_number,
+                    seat_number=seat_number,
+                    status='purchased'
+                )
+
+            return JsonResponse({'success': True})
+
+        except Exception as e:
+            print(e)  # Выводим информацию об ошибке в консоль
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
 
 def add_movie(request):
     if request.user.role != 'admin':
@@ -34,9 +72,74 @@ def movie_list(request):
     movies = Movie1.objects.all()
     return render(request, 'home.html', {'movies': movies})
 
+
+
+import json
+
+
 def movie_details(request, movie_id):
-    movie = get_object_or_404(Movie1, id=movie_id)
-    return render(request, 'movie_details.html', {'movie': movie})
+    movie = get_object_or_404(Movie1, pk=movie_id)
+    sessions = Session.objects.filter(movie=movie)
+
+    if request.method == 'POST':
+        # Получаем данные из POST запроса
+        session_id = request.POST.get('session_id')
+        row_number = request.POST.get('row_number')
+        seat_number = request.POST.get('seat_number')
+        status = request.POST.get('status')  # получаем статус из запроса
+        user = request.user  # текущий пользователь
+
+        # Создаем запись в базе данных
+        booking = Booking.objects.create(
+            user=user,
+            session_id=session_id,
+            row_number=row_number,
+            seat_number=seat_number,
+            status=status  # сохраняем статус
+        )
+
+        # Обновляем информацию о доступных местах в сеансе
+        session = Session.objects.get(pk=session_id)
+        session.available_seats -= 1
+        session.save()
+
+        # Возвращаем успешный ответ
+        return JsonResponse({'success': True})
+
+    # Возвращаем данные о сеансах для GET-запроса
+    return render(request, 'movie_details.html', {'movie': movie, 'sessions': sessions})
+
+@csrf_exempt
+def book_seat(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            session_id = data.get('session_id')
+            user_id = request.user.id  # Assuming the user is authenticated
+            selected_seats = data.get('selected_seats', [])
+
+            session = get_object_or_404(Session, id=session_id)
+            user = get_object_or_404(User, id=user_id)
+
+            for seat_info in selected_seats:
+                row_number = seat_info.get('row')
+                seat_number = seat_info.get('seat')
+
+                # Create a booking record
+                Booking.objects.create(
+                    user=user,
+                    session=session,
+                    row_number=row_number,
+                    seat_number=seat_number,
+                    status='purchased'
+                )
+
+            return JsonResponse({'success': True})
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
 
 def my_view(request):
     if request.user.is_authenticated:

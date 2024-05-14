@@ -46,7 +46,6 @@ class Session(models.Model):
 class Booking(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     session = models.ForeignKey(Session, on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
     STATUS_CHOICES = [
         ('purchased', 'Куплен'),
         ('canceled', 'Отменен'),
@@ -54,7 +53,7 @@ class Booking(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES)
     row_number = models.IntegerField()
     seat_number = models.IntegerField()
-    available_seats = models.IntegerField()
+    ticket_count = models.IntegerField(default = 1)
 class Review(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     movie = models.ForeignKey(Movie1, on_delete=models.CASCADE, null=True, blank=True)
@@ -65,8 +64,9 @@ class Review(models.Model):
 @receiver(post_save, sender=Booking)
 def increment_ticket_count(sender, instance, created, **kwargs):
     if created:  # Проверяем, создана ли новая запись
-        instance.booking.ticket_count += 1  # Увеличиваем значение ticket_count на 1
-        instance.booking.save()  # Сохраняем изменения в объекте Seat
+        instance.ticket_count += 1  # Увеличиваем значение ticket_count на 1
+        instance.save()  # Сохраняем изменения в объекте Session
+
 
 @receiver(post_save, sender=Movie1)
 def save_movie_poster(sender, instance, **kwargs):

@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,18 +13,11 @@
             align-items: center;
             margin-top: 20px;
         }
-
         .row {
             display: flex;
             align-items: center;
             margin-bottom: 10px;
         }
-
-        .row-label {
-            font-weight: bold;
-            margin-right: 10px;
-        }
-
         .screen {
             width: 100%;
             height: 20px;
@@ -33,7 +27,6 @@
             color: white;
             font-weight: bold;
         }
-
         .seat {
             width: 20px;
             height: 20px;
@@ -46,7 +39,6 @@
             justify-content: center;
             align-items: center;
         }
-
         .selected {
             background-color: red;
         }
@@ -55,69 +47,113 @@
 <body>
 
 <div class="movie-details">
+    <div class="image">
+        <img src="{{ movie.poster.url }}" alt="{{ movie.title }} Poster">
+    </div>
     <div class="info">
         <h2>{{ movie.title }}</h2>
         <p>{{ movie.description }}</p>
     </div>
-    <div class="image">
-        <img src="{% static movie.poster %}" alt="{{ movie.title }} Poster">
-    </div>
 </div>
 
-<div id="seatSelection">
-    <h3>Выберите место</h3>
-    <div id="hall" class="hall">
-        <!-- Места будут отображаться здесь -->
-    </div>
-    <div class="screen">Экран</div>
-    <button id="bookButton">Забронировать</button>
+<div class="sessions">
+    <h3>Сеансы:</h3>
+    <ul>
+        {% for session in sessions %}
+            <li>Время начала: {{ session.start_datetime }}, Цена билета: {{ session.ticket_price }}
+                <div id="hall_{{ session.id }}" class="hall">
+                </div>
+                <div class="screen">Экран</div>
+                <button class="bookButton" data-session-id="{{ session.id }}">Забронировать</button>
+            </li>
+        {% endfor %}
+    </ul>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        var hall = document.getElementById("hall");
-
-        var rows = 12;
-        var seatsPerRow = 30;
-        for (var row = 1; row <= rows; row++) {
-            var rowElement = document.createElement("div");
-            rowElement.classList.add("row");
-
-            var rowLabel = document.createElement("span");
-            rowLabel.classList.add("row-label");
-            rowLabel.textContent = "Ряд " + row;
-            rowElement.appendChild(rowLabel);
-
-            for (var seat = 1; seat <= seatsPerRow; seat++) {
-                var seatElement = document.createElement("div");
-                seatElement.classList.add("seat");
-                seatElement.dataset.row = row;
-                seatElement.dataset.seat = seat;
-                seatElement.textContent = seat;
-                rowElement.appendChild(seatElement);
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
-
-            hall.appendChild(rowElement);
         }
+        return cookieValue;
+    }
 
-        hall.addEventListener("click", function(event) {
-            var selectedSeat = event.target;
-            if (selectedSeat.classList.contains("seat")) {
-                selectedSeat.classList.toggle("selected");
+    document.addEventListener("DOMContentLoaded", function() {
+        var halls = document.querySelectorAll(".hall");
+        halls.forEach(function(hall) {
+            var seatsPerRow = 10;
+            var rows = 10;
+
+            for (var i = 0; i < rows; i++) {
+                var row = document.createElement("div");
+                row.classList.add("row");
+                row.dataset.row = i + 1;
+
+                for (var j = 0; j < seatsPerRow; j++) {
+                    var seat = document.createElement("div");
+                    seat.classList.add("seat");
+                    seat.textContent = j + 1;
+                    seat.dataset.row = i + 1;
+                    seat.dataset.seat = j + 1;
+                    row.appendChild(seat);
+                }
+                hall.appendChild(row);
             }
         });
 
-        var bookButton = document.getElementById("bookButton");
-        bookButton.addEventListener("click", function() {
-            var selectedSeats = document.querySelectorAll(".seat.selected");
-            var selectedSeatInfo = [];
-            selectedSeats.forEach(function(seat) {
-                selectedSeatInfo.push({
-                    row: seat.dataset.row,
-                    seat: seat.dataset.seat
+        var bookButtons = document.querySelectorAll(".bookButton");
+        bookButtons.forEach(function(button) {
+            button.addEventListener("click", function() {
+                var sessionId = button.dataset.sessionId;
+                var selectedSeats = document.querySelectorAll("#hall_" + sessionId + " .seat.selected");
+                var selectedSeatsInfo = [];
+
+                selectedSeats.forEach(function(seat) {
+                    selectedSeatsInfo.push({
+                        row: seat.dataset.row,
+                        seat: seat.dataset.seat
+                    });
                 });
+
+                console.log("Selected seats:", selectedSeatsInfo); // Отладка выбранных мест
+
+                fetch('{% url "book_seat" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        selected_seats: selectedSeatsInfo
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Response:", data); // Отладка ответа сервера
+                    if (data.success) {
+                        alert('Бронь успешно совершена!');
+                    } else {
+                        alert('Ошибка при бронировании: ' + data.error);
+                    }
+                })
+                .catch(error => alert('Ошибка: ' + error));
             });
-            console.log(selectedSeatInfo);
+        });
+
+        var seats = document.querySelectorAll(".seat");
+        seats.forEach(function(seat) {
+            seat.addEventListener("click", function() {
+                seat.classList.toggle("selected");
+            });
         });
     });
 </script>
